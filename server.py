@@ -215,11 +215,17 @@ def get_account_path():
 
 @app.route("/loading")
 def loading_path():
+    global chats
     time.sleep(1) # extra waiting
     c = get_user()
     if not c:
         return redirect("/")
     c.online()
+    for name, _ in list(chats.items()):
+        name1, name2 = name
+        if name1 == c.username or name2 == c.username:
+            with lock:
+                del chats[name]
     return send_file("loading.html", mimetype="text/html")
 
 @app.route("/quit_account")
