@@ -220,9 +220,8 @@ def loading_path():
     c = get_user()
     if not c:
         return redirect("/")
-    c.online()
     for name, _ in list(chats.items()):
-        name1, name2 = name
+        name1, name2 = name.split(",")
         if name1 == c.username or name2 == c.username:
             with lock:
                 del chats[name]
