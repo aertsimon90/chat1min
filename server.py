@@ -106,19 +106,20 @@ class User:
             else:
                 with lock:
                     online.remove((name, last))
+        return None, None
     def check_target(self):
         global chats
         for chat, data in list(chats.items()):
             if time.time()-data["last"] <= 60:
                 name1, name2 = chat.split(",")
                 if name1 == self.username or name2 == self.username:
-                    return chat
+                    return chat, data["last"]
             else:
                 del chats[chat]
         return self.find_target()
     def send_message(self, content):
         global chats
-        target = self.check_target()
+        target, _ = self.check_target()
         if target:
             if len(content) > 0:
                 with lock:
@@ -168,13 +169,13 @@ def get_user():
 def check_target_api():
     c = get_user()
     if c:
-        ex = c.check_target()
+        ex, last = c.check_target()
         if ex:
-            return "true", 200
+            return json.dumps({"cooldown": int(time.time()-last)}), 200
         else:
-            return "false", 400
+            return "Match loading.", 400
     else:
-        return "false", 400
+        return "Account not found.", 400
 
 @app.route("/api/send_message", methods=["POST"])
 def send_message_api():
