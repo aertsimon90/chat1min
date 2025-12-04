@@ -194,7 +194,7 @@
     </div>
 
     <div class="input-footer">
-        <input type="text" id="message-input" placeholder="Type your message... (Max 4096 chars)" maxlength="4096">
+        <input type="text" id="message-input" placeholder="Type your message..." maxlength="4096">
         <button id="send-button" onclick="sendMessage()">
             <i class="fas fa-paper-plane"></i> 
         </button>
@@ -263,7 +263,7 @@
                         updateTimerDisplay();
                     }, 1000);
 
-                    messageLoopId = setInterval(loadMessagesLoop, 2000); 
+                    messageLoopId = setInterval(loadMessagesLoop, 1000); 
                     checkLoopId = setInterval(checkTargetLoop, 2000);
                     loadMessagesLoop();
                 } else {
