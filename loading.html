@@ -6,7 +6,7 @@
     <title>Chat1Min – Matching...</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --primary: #7c3aed; --dark: #0f0f1a; --light: #f8fafc; }
+        :root { --primary: #7c3aed; --dark: #0f0f1a; --light: #f8fafc; --red: #ef4444; }
         * { margin:0; padding:0; box-sizing:border-box; }
         body {
             font-family: 'Space Grotesk', sans-serif;
@@ -60,7 +60,32 @@
         .status-text {
             font-size: 1.1rem;
             color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 2rem; /* Buton için boşluk */
         }
+
+        /* Quit Button Style */
+        .quit-btn {
+            background: transparent;
+            color: var(--light);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: background 0.3s, border-color 0.3s, transform 0.2s;
+            font-family: 'Space Grotesk', sans-serif;
+            font-size: 1rem;
+            text-decoration: none; /* Eğer <a> etiketi kullanırsak */
+            display: inline-block;
+        }
+        .quit-btn:hover {
+            background: rgba(239, 68, 68, 0.1); /* Hafif kırmızı hover */
+            border-color: var(--red);
+            transform: translateY(-1px);
+        }
+        .quit-btn:active {
+            transform: translateY(0);
+        }
+
     </style>
 </head>
 <body>
@@ -71,6 +96,9 @@
         <div class="spinner"></div>
         <h1>Matching...</h1>
         <div class="status-text">We are finding a great conversation partner for you.</div>
+        
+        <a href="/quit_account" class="quit-btn">Quit</a>
+        
     </div>
 
     <script>
@@ -153,9 +181,7 @@
                     
                     if (data.matched === true) {
                         console.log("Match found! Redirecting to /chat...");
-                        
                         window.location.href = '/chat';
-                        
                         clearInterval(intervalId);
                         return;
                     }
@@ -172,7 +198,6 @@
         };
 
         const intervalId = setInterval(checkTarget, 2000);
-
         checkTarget();
 
         window.onbeforeunload = function() {
