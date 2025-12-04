@@ -38,6 +38,9 @@ def get_lckey():
         with open(lckeyfile, "wb") as f:
             f.write(lc.encrypt_with_iv(lc.encode_direct(lckey), "Chat1Min"))
 
+get_lckey()
+load()
+
 class User:
     def __init__(self):
         self.username = None
@@ -51,7 +54,7 @@ class User:
             return "Account already exists.", 400
         else:
             username = str(username);password = str(password);logs = dict(logs)
-            username_allowed = "qwertyuopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890._"
+            username_allowed = "qwertyuopasdfghjklizxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890._"
             for h in username:
                 if h not in username_allowed:
                     return "Special characters are not allowed in username.", 400
@@ -79,7 +82,7 @@ class User:
             if self.check_pwd(username, password):
                 cid = self.hashs(str(time.time()))
                 with lock:
-                    sessions[cid] = [username, password, time.time()]
+                    sessions[(cid, request.remote_addr)] = [username, password, time.time()]
                 self.username = username
                 return cid, 200
             else:
@@ -115,7 +118,11 @@ class User:
                 if name1 == self.username or name2 == self.username:
                     return chat, data["last"]
             else:
-                del chats[chat]
+                with lock:
+                    del chats[chat]
+                name1, name2 = chat.split(",")
+                if name1 == self.username or name2 == self.username:
+                    return None, None
         return self.find_target()
     def send_message(self, content):
         global chats
@@ -131,7 +138,7 @@ class User:
             return "Chat room not found.", 400
     def load_messages(self):
         global chats
-        target = self.check_target()
+        target, _ = self.check_target()
         if target:
             return json.dumps(chats[target]["box"]), 200
         else:
@@ -143,17 +150,20 @@ app = Flask(__name__)
 def sign_up_api():
     data = request.get_json()
     c = User()
-    return c.sign_up(data["username"], data["password"], {"headers": dict(request.headers), "environ": dict(request.environ)})
+    out = c.sign_up(data["username"], data["password"], {"headers": dict(request.headers), "environ": dict(request.environ)})
+    save()
+    return out
 
 @app.route("/api/log_in", methods=["POST"])
 def log_in_api():
     data = request.get_json()
     c = User()
-    return c.log_in(data["username"], data["password"])
+    out = c.log_in(data["username"], data["password"])
+    return out
 
 def get_user():
     global sessions
-    cid = request.cookies.get("cid", "")
+    cid = (request.cookies.get("cid", ""), request.remote_addr)
     if cid in sessions:
         username, password, last = sessions[cid]
         if time.time()-last <= 60*60:
@@ -173,7 +183,7 @@ def check_target_api():
         if ex:
             return json.dumps({"matched": True, "elapsed": int(time.time()-last)}), 200
         else:
-            return json.dumps({"matched": False})
+            return json.dumps({"matched": False}), 200
     else:
         return "Unauthorized", 401
 
@@ -205,6 +215,7 @@ def get_account_path():
 
 @app.route("/loading")
 def loading_path():
+    time.sleep(1) # extra waiting
     c = get_user()
     if not c:
         return redirect("/")
@@ -221,11 +232,11 @@ def quit_account_path():
 
 @app.route("/chat")
 def chat_path():
+    global chats
     c = get_user()
     if not c:
         return redirect("/")
-    c.online()
-    return send_file("chat.html", mimetype="text/html")
+    return open("chat.html", "r", encoding="utf-8").read().replace("$UserName", c.username)
 
 @app.route("/favicon.ico")
 def favicon_file():
