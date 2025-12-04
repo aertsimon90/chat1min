@@ -204,6 +204,10 @@ def get_account_path():
 
 @app.route("/loading")
 def loading_path():
+    c = get_user()
+    if not c:
+        return redirect("/")
+    c.online()
     return send_file("loading.html", mimetype="text/html")
 
 @app.route("/quit_account")
@@ -216,6 +220,10 @@ def quit_account_path():
 
 @app.route("/chat")
 def chat_path():
+    c = get_user()
+    if not c:
+        return redirect("/")
+    c.online()
     return send_file("chat.html", mimetype="text/html")
 
 @app.route("/favicon.ico")
