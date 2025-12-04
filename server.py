@@ -1,0 +1,193 @@
+# Chat1Min
+from flask import Flask, request, send_file
+import hashlib, json, threading, time, os
+import LeCatchu
+
+users = {}
+sessions = {}
+online = []
+chats = {}
+lc = LeCatchu.LeCatchu_Engine(encoding=False, special_exchange="Chat1MinApp")
+lckey = lc.decode_direct(os.urandom(128))
+
+dbfile = "users_db.json.lc"
+lckeyfile = "lckey.txt"
+lock = threading.Lock()
+
+def save():
+    global users, dbfile, lckey, lc
+    with open(dbfile, "wb") as f:
+        f.write(lc.encrypt_with_iv(lc.encode_direct(json.dumps(users, indent=1, default=repr)), lckey))
+
+def load():
+    global users, dbfile, lckey, lc
+    try:
+        with open(dbfile, "rb") as f:
+            with lock:
+                users = json.loads(lc.decode_direct(lc.decrypt_with_iv(f.read(), lckey)))
+    except Exception as e:
+        print("Error on loading users data:", e)
+
+def get_lckey():
+    global lckeyfile, lckey, lc
+    if os.path.exists(lckeyfile):
+        with open(lckeyfile, "rb") as f:
+            with lock:
+                lckey = lc.decode_direct(lc.decrypt_with_iv(f.read(), "Chat1Min"))
+    else:
+        with open(lckeyfile, "wb") as f:
+            f.write(lc.encrypt_with_iv(lc.encode_direct(lckey), "Chat1Min"))
+
+class User:
+    def __init__(self):
+        self.username = None
+    def hashs(self, target):
+        target = target.encode("utf-8", errors="ignore")
+        [target:=hashlib.sha256(target).digest() for _ in range((int(hashlib.sha256(target).hexdigest(), 16)%128)+16)]
+        return target.hex()
+    def sign_up(self, username, password, logs):
+        global users
+        if username in users:
+            return "Account already exists.", 400
+        else:
+            username = str(username);password = str(password);logs = dict(logs)
+            username_allowed = "qwertyuopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890._"
+            for h in username:
+                if h not in username_allowed:
+                    return "Special characters are not allowed in username.", 400
+            if len(username) < 6:
+                return "Username cannot be shorter than 6 characters.", 400
+            elif len(username) > 20:
+                return "Username cannot be longer than 20 characters.", 400
+            if len(password) < 8:
+                return "Password must be longer than 8 characters.", 400
+            for h in password:
+                if ord(h) > 1024:
+                    return "Some special characters are not allowed in password", 400
+            password = self.hashs(password[:1024])
+            with lock:
+                users[username] = {"password": password, "logs": logs, "created": time.time()}
+            self.username = username
+            return "Successfuly.", 200
+    def check_pwd(self, username, password):
+        global users
+        return users[username]["password"]==password
+    def log_in(self, username, password):
+        global users, sessions
+        if username in users:
+            password = self.hashs(password)
+            if self.check_pwd(username, password):
+                cid = self.hashs(str(time.time()))
+                with lock:
+                    sessions[cid] = [username, password, time.time()]
+                self.username = username
+                return cid, 200
+            else:
+                return "Password is invalid.", 400
+        else:
+            return "Account not found.", 400
+    def online(self):
+        global online
+        for name, _ in online:
+            if name == self.username:
+                return
+        with lock:
+            online.append((self.username, time.time()))
+    def find_target(self):
+        global online, chats
+        for name, last in list(online):
+            if time.time()-last <= 60:
+                if name != self.username:
+                    chat = name+","+self.username
+                    with lock:
+                        online.remove((name, last))
+                        chats[chat] = {"last": time.time(), "box": []}
+                    return chat
+            else:
+                with lock:
+                    online.remove((name, last))
+    def check_target(self):
+        global chats
+        for chat, data in list(chats.items()):
+            if time.time()-data["last"] <= 60:
+                name1, name2 = chat.split(",")
+                if name1 == self.username or name2 == self.username:
+                    return chat
+            else:
+                del chats[chat]
+        return self.find_target()
+    def send_message(self, content):
+        global chats
+        target = self.check_target()
+        if target:
+            if len(content) > 0:
+                with lock:
+                    chats[target]["box"].append([self.username, content[:4096], int(time.time())])
+                return "Successfuly.", 200
+            else:
+                return "Message content not found.", 400
+        else:
+            return "Chat room not found.", 400
+    def load_messages(self):
+        global chats
+        target = self.check_target()
+        if target:
+            return json.dumps(chats[target]["box"]), 200
+        else:
+            return "Chat room not found.", 400
+
+app = Flask(__name__)
+
+@app.route("/api/sign_up", methods=["POST"])
+def sign_up_api():
+    data = request.get_json()
+    c = User()
+    return c.sign_up(data["username"], data["password"], {"headers": dict(request.headers), "environ": dict(request.environ)})
+
+@app.route("/api/log_in", methods=["POST"])
+def log_in_api():
+    data = request.get_json()
+    c = User()
+    return c.log_in(data["username"], data["password"])
+
+def get_user():
+    global sessions
+    cid = request.cookies.get("cid", "")
+    if cid in sessions:
+        username, password, last = sessions[cid]
+        if time.time()-last <= 60*60:
+            c = User()
+            if c.check_pwd(username, password):
+                c.username = username
+                return c
+        else:
+            with lock:
+                del sessions[cid]
+
+@app.route("/api/check_target", methods=["POST"])
+def check_target_api():
+    c = get_user()
+    if c:
+        ex = c.check_target()
+        if ex:
+            return "true", 200
+        else:
+            return "false", 400
+    else:
+        return "false", 400
+
+@app.route("/api/send_message", methods=["POST"])
+def send_message_api():
+    c = get_user()
+    if c:
+        return c.send_message(request.get_json()["content"])
+    else:
+        return "Account not found.", 400
+
+@app.route("/api/load_messages", methods=["POST"])
+def load_messages_api():
+    c = get_user()
+    if c:
+        return c.load_messages()
+    else:
+        return "Account not found.", 400
