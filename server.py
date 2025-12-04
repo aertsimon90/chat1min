@@ -102,7 +102,7 @@ class User:
                     with lock:
                         online.remove((name, last))
                         chats[chat] = {"last": time.time(), "box": []}
-                    return chat
+                    return chat, 0
             else:
                 with lock:
                     online.remove((name, last))
@@ -171,11 +171,11 @@ def check_target_api():
     if c:
         ex, last = c.check_target()
         if ex:
-            return json.dumps({"cooldown": int(time.time()-last)}), 200
+            return json.dumps({"matched": True, "elapsed": int(time.time()-last)}), 200
         else:
-            return "Match loading.", 400
+            return json.dumps({"matched": False})
     else:
-        return "Account not found.", 400
+        return "Unauthorized", 401
 
 @app.route("/api/send_message", methods=["POST"])
 def send_message_api():
@@ -183,7 +183,7 @@ def send_message_api():
     if c:
         return c.send_message(request.get_json()["content"])
     else:
-        return "Account not found.", 400
+        return "Unauthorized", 401
 
 @app.route("/api/load_messages", methods=["POST"])
 def load_messages_api():
@@ -191,7 +191,7 @@ def load_messages_api():
     if c:
         return c.load_messages()
     else:
-        return "Account not found.", 400
+        return "Unauthorized", 401
 
 @app.route("/")
 def main_path():
