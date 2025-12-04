@@ -1,5 +1,5 @@
 # Chat1Min
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, redirect
 import hashlib, json, threading, time, os
 import LeCatchu
 
@@ -191,3 +191,40 @@ def load_messages_api():
         return c.load_messages()
     else:
         return "Account not found.", 400
+
+@app.route("/")
+def main_path():
+    if get_user():
+        return redirect("/loading")
+    return send_file("index.html", mimetype="text/html")
+
+@app.route("/get_account")
+def get_account_path():
+    return send_file("get_account.html", mimetype="text/html")
+
+@app.route("/loading")
+def loading_path():
+    return send_file("loading.html", mimetype="text/html")
+
+@app.route("/quit_account")
+def quit_account_path():
+    global sessions
+    cid = request.cookies.get("cid", "")
+    if cid in sessions:
+        del sessions[cid]
+    return redirect("/")
+
+@app.route("/chat")
+def chat_path():
+    return send_file("chat.html", mimetype="text/html")
+
+@app.route("/favicon.ico")
+def favicon_file():
+    return send_file("favicon.ico", mimetype="image/icon")
+
+@app.route("/logo.png")
+def logo_file():
+    return send_file("logo.png", mimetype="image/png")
+
+if __name__ == "__main__":
+    app.run(debug=True)
