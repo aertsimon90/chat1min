@@ -80,8 +80,17 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
             font-size: 1rem;
             line-height: 1.5;
+            display: flex;
+            flex-direction: column;
         }
         
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
         .message.their {
             justify-content: flex-start;
         }
@@ -89,7 +98,7 @@
             background-color: var(--their-bubble);
             border-bottom-left-radius: 4px;
         }
-
+        
         .message.my {
             justify-content: flex-end;
         }
@@ -100,30 +109,26 @@
         
         .username {
             font-size: 0.8rem;
-            margin-bottom: 4px;
             font-weight: 500;
             color: rgba(255, 255, 255, 0.7); 
-            text-align: left;
         }
         .message.my .username {
              color: #ddd6fe;
-             text-align: right;
-        }
-        .message.their .username {
-            text-align: left;
         }
 
         .timestamp {
-            position: absolute;
-            top: 4px;
-            right: 12px;
             font-size: 0.7rem;
             color: rgba(255, 255, 255, 0.6);
+            margin-left: 10px;
         }
-        .message.my .timestamp {
-            left: 12px;
-            right: auto;
+
+        .message-text {
+            word-wrap: break-word;
+            word-break: break-word;
+            white-space: pre-wrap;
+            overflow: hidden;
         }
+
         .input-footer {
             padding: 1rem;
             background: rgba(20, 20, 35, 0.9);
@@ -198,6 +203,10 @@
     <script>
         let timer = 60;
         let username = ""; 
+        let lastMessageCount = 0;
+        let localTimerId;
+        let messageLoopId;
+        let checkLoopId;
 
         function formatTime(timestamp) {
             const date = new Date(timestamp * 1000);
@@ -235,10 +244,6 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // --- CHAT LOGIC ---
-        let lastMessageCount = 0;
-        let localTimerId;
-
         async function initialCheck() {
             try {
                 const response = await fetch('/api/check_target', { method: 'POST' });
@@ -258,9 +263,9 @@
                         updateTimerDisplay();
                     }, 1000);
 
+                    messageLoopId = setInterval(loadMessagesLoop, 2000); 
+                    checkLoopId = setInterval(checkTargetLoop, 2000);
                     loadMessagesLoop();
-                    checkTargetLoop();
-
                 } else {
                     console.log("No active match found on load. Redirecting to /loading.");
                     window.location.href = '/loading';
@@ -317,9 +322,11 @@
                         const messageHTML = `
                             <div class="message ${messageClass}" style="animation-delay: ${ (i - lastMessageCount) * 0.1}s;">
                                 <div class="message-content-container">
-                                    <div class="timestamp">${timeString}</div>
-                                    <div class="username">${safeSender}</div> 
-                                    ${safeContent}
+                                    <div class="message-header">
+                                        <div class="username">${safeSender}</div> 
+                                        <div class="timestamp">${timeString}</div>
+                                    </div>
+                                    <div class="message-text">${safeContent}</div>
                                 </div>
                             </div>
                         `;
@@ -373,9 +380,6 @@
                 window.location.href = '/loading';
             }
         }
-
-        const messageLoopId = setInterval(loadMessagesLoop, 2000); 
-        const checkLoopId = setInterval(checkTargetLoop, 2000);  
 
         initialCheck();
         
