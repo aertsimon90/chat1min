@@ -220,6 +220,7 @@ def loading_path():
     c = get_user()
     if not c:
         return redirect("/")
+    c.online()
     for name, _ in list(chats.items()):
         name1, name2 = name.split(",")
         if name1 == c.username or name2 == c.username:
@@ -230,7 +231,7 @@ def loading_path():
 @app.route("/quit_account")
 def quit_account_path():
     global sessions
-    cid = request.cookies.get("cid", "")
+    cid = (request.cookies.get("cid", ""), request.remote_addr)
     if cid in sessions:
         del sessions[cid]
     return redirect("/")
