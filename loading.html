@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat1Min – Matching...</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root { --primary: #7c3aed; --dark: #0f0f1a; --light: #f8fafc; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            background: rgba(20, 20, 35, 0.75);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 3rem 4rem;
+            border: 1px solid rgba(124, 58, 237, 0.4);
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 2rem;
+            background: linear-gradient(90deg, #ddd6fe, #c4b5fd);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+
+        /* Loading Spinner CSS */
+        .spinner {
+            border: 6px solid rgba(255, 255, 255, 0.2);
+            border-top: 6px solid var(--primary);
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1.5rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-text {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg"></canvas>
+
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>Matching...</h1>
+        <div class="status-text">We are finding a great conversation partner for you.</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('bg');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const nodes = [];
+        const nodeCount = 80;
+        const maxDistance = 160;
+
+        class Node {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.6;
+                this.vy = (Math.random() - 0.5) * 0.6;
+                this.radius = Math.random() * 2.5 + 1;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+            }
+            draw() {
+                ctx.fillStyle = '#c4b5fd';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        for (let i = 0; i < nodeCount; i++) nodes.push(new Node());
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+
+            ctx.strokeStyle = 'rgba(124, 58, 237, 0.18)';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    const dx = nodes[i].x - nodes[j].x;
+                    const dy = nodes[i].y - nodes[j].y;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist < maxDistance) {
+                        ctx.globalAlpha = 1 - dist / maxDistance;
+                        ctx.beginPath();
+                        ctx.moveTo(nodes[i].x, nodes[i].y);
+                        ctx.lineTo(nodes[j].x, nodes[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            ctx.globalAlpha = 1;
+
+            nodes.forEach(n => { n.update(); n.draw(); });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        const checkTarget = async () => {
+            try {
+                const response = await fetch('/api/check_target', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (response.status === 200) {
+                    const data = await response.json();
+                    
+                    if (data.matched === true) {
+                        console.log("Match found! Redirecting to /chat...");
+                        
+                        window.location.href = '/chat';
+                        
+                        clearInterval(intervalId);
+                        return;
+                    }
+                }
+                
+                if (response.status !== 200) {
+                     console.warn(`Target check failed. Status: ${response.status}.`);
+                } else {
+                     console.log("Target check successful. Still matching...");
+                }
+            } catch (error) {
+                console.error("Network or parsing error checking target:", error);
+            }
+        };
+
+        const intervalId = setInterval(checkTarget, 2000);
+
+        checkTarget();
+
+        window.onbeforeunload = function() {
+            clearInterval(intervalId);
+        };
+    </script>
+</body>
+</html>
