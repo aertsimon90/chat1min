@@ -218,10 +218,10 @@ def get_account_path():
 @app.route("/loading")
 def loading_path():
     global chats
-    time.sleep(1) # extra waiting
     c = get_user()
     if not c:
         return redirect("/")
+    time.sleep(1.1) # extra waiting
     c.online()
     return send_file("loading.html", mimetype="text/html")
 
@@ -244,7 +244,6 @@ def chat_path():
 @app.route("/quitchat")
 def quitchat_process_path():
     global chats, online
-    time.sleep(1) # extra waiting
     c = get_user()
     if not c:
         return redirect("/")
@@ -256,6 +255,7 @@ def quitchat_process_path():
         if user == c.username:
             with lock:
                 del online[(user, last)]
+    time.sleep(1) # extra waiting
     return redirect("/loading")
 
 @app.route("/favicon.ico")
