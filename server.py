@@ -69,9 +69,14 @@ class User:
                     return "Some special characters are not allowed in password", 400
             password = self.hashs(password[:1024])
             with lock:
-                users[username] = {"password": password, "logs": logs, "created": time.time()}
+                users[username] = {"password": password, "logs": logs, "created": time.time(), "chat": None}
             self.username = username
             return "Successfuly.", 200
+    def chat_name(self, name1, name2):
+        if int(hashlib.sha256(name1.encode()).hexdigest(), 16) >= int(hashlib.sha256(name2.encode()).hexdigest(), 16):
+            return hashlib.sha256((name1+","+name2).encode()).hexdigest()
+        else:
+            return hashlib.sha256((name2+","+name1).encode()).hexdigest()
     def check_pwd(self, username, password):
         global users
         return users[username]["password"]==password
@@ -97,32 +102,29 @@ class User:
         with lock:
             online.append((self.username, time.time()))
     def find_target(self):
-        global online, chats
+        global online, chats, users
         for name, last in list(online):
             if time.time()-last <= 4:
                 if name != self.username:
-                    chat = name+","+self.username
+                    chat = self.chat_name(name, self.username)
                     with lock:
                         online.remove((name, last))
                         chats[chat] = {"last": time.time(), "box": []}
+                        users[self.username]["chat"] = chat
+                        users[name]["chat"] = chat
                     return chat, 0
             else:
                 with lock:
                     online.remove((name, last))
         return None, None
     def check_target(self):
-        global chats
+        global chats, users
         for chat, data in list(chats.items()):
-            if time.time()-data["last"] <= 60:
-                name1, name2 = chat.split(",")
-                if name1 == self.username or name2 == self.username:
-                    return chat, data["last"]
-            else:
+            if time.time()-data["last"] >= 60:
                 with lock:
                     del chats[chat]
-                name1, name2 = chat.split(",")
-                if name1 == self.username or name2 == self.username:
-                    return None, None
+        if users[self.username]["chat"] in chats:
+            return users[self.username]["chat"], chats[users[self.username]["chat"]]["last"]
         return self.find_target()
     def send_message(self, content):
         global chats
@@ -241,24 +243,20 @@ def chat_path():
 
 @app.route("/quitchat")
 def quitchat_process_path():
-	global chats, online
-	time.sleep(1) # extra waiting
-	c = get_user()
-	if not c:
-		return redirect("/")
-	username = c.username
-	for chat, _ in list(chats.items()):
-		name1, name2 = chat.split(",")
-		if name1 == username or name2 == username:
-			name11 = name1
-			name22 = name2
-			with lock:
-				del chats[chat]
-	for user, last in list(online):
-		if user == name11 or user == name22:
-			with lock:
-				del online[(user, last)]
-	return redirect("/loading")
+    global chats, online
+    time.sleep(1) # extra waiting
+    c = get_user()
+    if not c:
+        return redirect("/")
+    chat = c.check_target()[0]
+    if chat in chats:
+        with lock:
+            del chats[chat]
+    for user, last in list(online):
+        if user == c.username:
+            with lock:
+                del online[(user, last)]
+    return redirect("/loading")
 
 @app.route("/favicon.ico")
 def favicon_file():
