@@ -247,20 +247,27 @@ def quitchat_process_path():
     c = get_user()
     if not c:
         return redirect("/")
-    chat = c.check_target()[0]
-    if chat in chats:
-        with lock:
-            del chats[chat]
-    for user, last in list(online):
-        if user == c.username:
+    try:
+        chat, _ = c.check_target()
+        if chat in chats:
             with lock:
-                del online[(user, last)]
+                del chats[chat]
+        for user, last in list(online):
+            if user == c.username:
+                with lock:
+                   del online[(user, last)]
+    except:
+        return quitchat_process_path()
     time.sleep(1) # extra waiting
     return redirect("/loading")
 
 @app.route("/favicon.ico")
 def favicon_file():
     return send_file("favicon.ico", mimetype="image/icon")
+
+@app.route("/logo.png")
+def logo_file():
+    return send_file("logo.png", mimetype="image/png")
 
 if __name__ == "__main__":
     app.run(debug=True)
