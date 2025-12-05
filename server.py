@@ -99,7 +99,7 @@ class User:
     def find_target(self):
         global online, chats
         for name, last in list(online):
-            if time.time()-last <= 60:
+            if time.time()-last <= 4:
                 if name != self.username:
                     chat = name+","+self.username
                     with lock:
@@ -221,15 +221,10 @@ def loading_path():
     if not c:
         return redirect("/")
     c.online()
-    for name, _ in list(chats.items()):
-        name1, name2 = name.split(",")
-        if name1 == c.username or name2 == c.username:
-            with lock:
-                del chats[name]
     return send_file("loading.html", mimetype="text/html")
 
 @app.route("/quit_account")
-def quit_account_path():
+def quit_account_process_path():
     global sessions
     cid = (request.cookies.get("cid", ""), request.remote_addr)
     if cid in sessions:
@@ -243,6 +238,27 @@ def chat_path():
     if not c:
         return redirect("/")
     return open("chat.html", "r", encoding="utf-8").read().replace("$UserName", c.username)
+
+@app.route("/quitchat")
+def quitchat_process_path():
+	global chats, online
+	time.sleep(1) # extra waiting
+	c = get_user()
+	if not c:
+		return redirect("/")
+	username = c.username
+	for chat, _ in list(chats.items()):
+		name1, name2 = chat.split(",")
+		if name1 == username or name2 == username:
+			name11 = name1
+			name22 = name2
+			with lock:
+				del chats[chat]
+	for user, last in list(online):
+		if user == name11 or user == name22:
+			with lock:
+				del online[(user, last)]
+	return redirect("/loading")
 
 @app.route("/favicon.ico")
 def favicon_file():
