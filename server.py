@@ -265,9 +265,5 @@ def quitchat_process_path():
 def favicon_file():
     return send_file("favicon.ico", mimetype="image/icon")
 
-@app.route("/logo.png")
-def logo_file():
-    return send_file("logo.png", mimetype="image/png")
-
 if __name__ == "__main__":
     app.run(debug=True)
