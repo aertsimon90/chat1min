@@ -56,7 +56,7 @@ Open http://127.0.0.1:5000 in two different browser windows/tabs and watch the m
 ├── get_account.html        # Sign-up / login page (minimal)
 ├── loading.html            # Matching screen
 ├── chat.html               # Active chat interface
-├── LeCatchu.py               # LeCatchu module
+├── LeCatchu.py             # LeCatchu module
 ├── favicon.ico
 └── logo.png
 ```
